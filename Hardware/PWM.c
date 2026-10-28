@@ -55,5 +55,11 @@ void PWM_Init(void)
   */
 void PWM_SetCompare3(uint16_t Compare)
 {
+	/*ARR 是 99，CCR 超过 99 就是恒高电平（100%），这里兜个底*/
+	if (Compare > 99)
+	{
+		Compare = 99;
+	}
+	
 	TIM_SetCompare3(TIM2, Compare);		//设置CCR3的值
 }

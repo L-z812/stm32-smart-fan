@@ -55,3 +55,35 @@ uint16_t AD_GetValue(void)
 	while (ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET);	//等待EOC标志位，即等待AD转换结束
 	return ADC_GetConversionValue(ADC1);					//读数据寄存器，得到AD转换的结果
 }
+
+/**
+  * 函    数：采集温度（含数字滤波和线性标定）
+  * 参    数：无
+  * 返 回 值：温度，范围 0~100（单位：℃）
+  * 注意事项：1. 连采 8 次取平均，抑制 ADC 末位跳动，读数不会个位数乱闪
+  *           2. NTC 分压后的电压与温度近似线性，标定式为 T = 100 - (AD - 1730) / 2.1
+  *              即 AD 1730 对应 100℃，AD 1940 对应 0℃
+  *           3. 必须先把 AD 值转成 int32_t 再减 1730，
+  *              否则无符号数相减会得到 42 亿多，再转 int16_t 就溢出了
+  *           4. 结果限幅在 0~100：传感器没接或接触不良时 AD 会跑到 0，
+  *              不限幅的话温度会算出几百，OLED 上会显示成天文数字
+  */
+int16_t AD_GetTemperature(void)
+{
+	uint32_t Sum = 0;
+	uint8_t i;
+	int32_t Average;
+	int16_t Temp;
+	
+	for (i = 0; i < 8; i++)
+	{
+		Sum += AD_GetValue();
+	}
+	Average = (int32_t)(Sum / 8);							//先转有符号，再参与后续运算
+	Temp = (int16_t)(100 - (Average - 1730) / 2.1f);		//线性标定到 0~100℃
+	
+	if (Temp < 0)	Temp = 0;
+	if (Temp > 100)	Temp = 100;
+	
+	return Temp;
+}
